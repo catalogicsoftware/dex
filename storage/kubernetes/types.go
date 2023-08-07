@@ -294,33 +294,45 @@ func toStorageClient(c Client) storage.Client {
 
 // Claims is a mirrored struct from storage with JSON struct tags.
 type Claims struct {
-	UserID            string   `json:"userID"`
-	Username          string   `json:"username"`
-	PreferredUsername string   `json:"preferredUsername"`
-	Email             string   `json:"email"`
-	EmailVerified     bool     `json:"emailVerified"`
-	Groups            []string `json:"groups,omitempty"`
+	UserID              string   `json:"userID"`
+	Username            string   `json:"username"`
+	PreferredUsername   string   `json:"preferredUsername"`
+	Email               string   `json:"email"`
+	FirstName           string   `json:"first_name"`
+	LastName            string   `json:"last_name"`
+	CountryCode         string   `json:"country_code"`
+	AwsMarketplaceToken string   `json:"aws_marketplace_token"`
+	EmailVerified       bool     `json:"emailVerified"`
+	Groups              []string `json:"groups,omitempty"`
 }
 
 func fromStorageClaims(i storage.Claims) Claims {
 	return Claims{
-		UserID:            i.UserID,
-		Username:          i.Username,
-		PreferredUsername: i.PreferredUsername,
-		Email:             i.Email,
-		EmailVerified:     i.EmailVerified,
-		Groups:            i.Groups,
+		UserID:              i.UserID,
+		Username:            i.Username,
+		PreferredUsername:   i.PreferredUsername,
+		Email:               i.Email,
+		EmailVerified:       i.EmailVerified,
+		Groups:              i.Groups,
+		FirstName:           i.FirstName,
+		LastName:            i.LastName,
+		CountryCode:         i.CountryCode,
+		AwsMarketplaceToken: i.AwsMarketplaceToken,
 	}
 }
 
 func toStorageClaims(i Claims) storage.Claims {
 	return storage.Claims{
-		UserID:            i.UserID,
-		Username:          i.Username,
-		PreferredUsername: i.PreferredUsername,
-		Email:             i.Email,
-		EmailVerified:     i.EmailVerified,
-		Groups:            i.Groups,
+		UserID:              i.UserID,
+		Username:            i.Username,
+		PreferredUsername:   i.PreferredUsername,
+		Email:               i.Email,
+		EmailVerified:       i.EmailVerified,
+		Groups:              i.Groups,
+		FirstName:           i.FirstName,
+		LastName:            i.LastName,
+		CountryCode:         i.CountryCode,
+		AwsMarketplaceToken: i.AwsMarketplaceToken,
 	}
 }
 

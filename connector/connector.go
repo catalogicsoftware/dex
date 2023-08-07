@@ -29,6 +29,12 @@ type Identity struct {
 	Email             string
 	EmailVerified     bool
 
+	// Custom claims used by CloudCasa
+	FirstName           string
+	LastName            string
+	CountryCode         string
+	AwsMarketplaceToken string
+
 	Groups []string
 
 	// ConnectorData holds data used by the connector for subsequent requests after initial

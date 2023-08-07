@@ -436,14 +436,47 @@ func (c *oidcConnector) createIdentity(ctx context.Context, identity connector.I
 		return identity, fmt.Errorf("oidc: failed to encode connector data: %v", err)
 	}
 
+	var firstName, lastName, countryCode, awsMarketplaceToken string
+	if _, ok := claims["http://www.cloudcasa.io/firstName"]; ok {
+		firstName, ok = claims["http://www.cloudcasa.io/firstName"].(string)
+		if !ok {
+			firstName = "-"
+		}
+	}
+
+	if _, ok := claims["http://www.cloudcasa.io/lastName"]; ok {
+		lastName, ok = claims["http://www.cloudcasa.io/lastName"].(string)
+		if !ok {
+			lastName = "-"
+		}
+	}
+
+	if _, ok := claims["http://www.cloudcasa.io/country_code"]; ok {
+		countryCode, ok = claims["http://www.cloudcasa.io/country_code"].(string)
+		if !ok {
+			countryCode = "-"
+		}
+	}
+
+	if _, ok := claims["http://www.cloudcasa.io/aws_marketplace_token"]; ok {
+		awsMarketplaceToken, ok = claims["http://www.cloudcasa.io/aws_marketplace_token"].(string)
+		if !ok {
+			awsMarketplaceToken = "-"
+		}
+	}
+
 	identity = connector.Identity{
-		UserID:            subject,
-		Username:          name,
-		PreferredUsername: preferredUsername,
-		Email:             email,
-		EmailVerified:     emailVerified,
-		Groups:            groups,
-		ConnectorData:     connData,
+		UserID:              subject,
+		Username:            name,
+		PreferredUsername:   preferredUsername,
+		Email:               email,
+		EmailVerified:       emailVerified,
+		Groups:              groups,
+		ConnectorData:       connData,
+		FirstName:           firstName,
+		LastName:            lastName,
+		CountryCode:         countryCode,
+		AwsMarketplaceToken: awsMarketplaceToken,
 	}
 
 	if c.userIDKey != "" {
