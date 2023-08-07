@@ -1,8 +1,8 @@
 {{ template "header.html" . }}
 
-<div class="theme-panel">
-  <h2 class="theme-heading">{{ .ErrType }}</h2>
-  <p>{{ .ErrMsg }}</p>
+<h2 class="theme-heading">{{ .ErrType }}</h2>
+<div class="alert alert-danger">
+  {{ .ErrMsg }}
 </div>
 
 {{ template "footer.html" . }}

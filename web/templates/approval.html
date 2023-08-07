@@ -1,44 +1,41 @@
 {{ template "header.html" . }}
 
-<div class="theme-panel">
-  <h2 class="theme-heading">Grant Access</h2>
+<h2>Grant Access</h2>
 
-  <hr class="dex-separator">
-  <div>
-    {{ if .Scopes }}
-    <div class="dex-subtle-text">{{ .Client }} would like to:</div>
-    <ul class="dex-list">
-      {{ range $scope := .Scopes }}
-      <li>{{ $scope }}</li>
-      {{ end }}
-    </ul>
-    {{ else }}
-    <div class="dex-subtle-text">{{ .Client }} has not requested any personal information</div>
+<hr>
+<div>
+  {{ if .Scopes }}
+  <div class="subtle-text">{{ .Client }} would like to:</div>
+  <ul class="list-group">
+    {{ range $scope := .Scopes }}
+    <li class="list-group-item">{{ $scope }}</li>
     {{ end }}
-  </div>
-  <hr class="dex-separator">
+  </ul>
+  {{ else }}
+  <div class="subtle-text">{{ .Client }} has not requested any personal information</div>
+  {{ end }}
+</div>
+<hr>
 
+<div class="d-flex align-items-center justify-content-between">
   <div>
-    <div class="theme-form-row">
-      <form method="post">
-        <input type="hidden" name="req" value="{{ .AuthReqID }}"/>
-        <input type="hidden" name="approval" value="approve">
-        <button type="submit" class="dex-btn theme-btn--success">
-            <span class="dex-btn-text">Grant Access</span>
-        </button>
-      </form>
-    </div>
-    <div class="theme-form-row">
-      <form method="post">
-        <input type="hidden" name="req" value="{{ .AuthReqID }}"/>
-        <input type="hidden" name="approval" value="rejected">
-        <button type="submit" class="dex-btn theme-btn-provider">
-            <span class="dex-btn-text">Cancel</span>
-        </button>
-      </form>
-    </div>
+    <form method="post">
+      <input type="hidden" name="req" value="{{ .AuthReqID }}"/>
+      <input type="hidden" name="approval" value="rejected">
+      <button type="submit" class="btn bg-danger w-50">
+          <span class="btn-text">Cancel</span>
+      </button>
+    </form>
   </div>
-
+  <div>
+    <form method="post">
+      <input type="hidden" name="req" value="{{ .AuthReqID }}"/>
+      <input type="hidden" name="approval" value="approve">
+      <button type="submit" class="btn bg-success w-50">
+          <span class="btn-text">Grant Access</span>
+      </button>
+    </form>
+  </div>
 </div>
 
 {{ template "footer.html" . }}
