@@ -353,12 +353,16 @@ func (s *Server) handleRefreshToken(w http.ResponseWriter, r *http.Request, clie
 	}
 
 	claims := storage.Claims{
-		UserID:            ident.UserID,
-		Username:          ident.Username,
-		PreferredUsername: ident.PreferredUsername,
-		Email:             ident.Email,
-		EmailVerified:     ident.EmailVerified,
-		Groups:            ident.Groups,
+		UserID:              ident.UserID,
+		Username:            ident.Username,
+		PreferredUsername:   ident.PreferredUsername,
+		Email:               ident.Email,
+		EmailVerified:       ident.EmailVerified,
+		Groups:              ident.Groups,
+		FirstName:           ident.FirstName,
+		LastName:            ident.LastName,
+		CountryCode:         ident.CountryCode,
+		AwsMarketplaceToken: ident.AwsMarketplaceToken,
 	}
 
 	accessToken, _, err := s.newAccessToken(client.ID, claims, rCtx.scopes, rCtx.storageToken.Nonce, rCtx.storageToken.ConnectorID)
