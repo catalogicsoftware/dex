@@ -928,20 +928,6 @@ func (s *Server) handleAuthCode(w http.ResponseWriter, r *http.Request, client s
 }
 
 func (s *Server) exchangeAuthCode(w http.ResponseWriter, authCode storage.AuthCode, client storage.Client) (*accessTokenResponse, error) {
-	accessToken, _, err := s.newAccessToken(client.ID, authCode.Claims, authCode.Scopes, authCode.Nonce, authCode.ConnectorID)
-	if err != nil {
-		s.logger.Errorf("failed to create new access token: %v", err)
-		s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
-		return nil, err
-	}
-
-	idToken, expiry, err := s.newIDToken(client.ID, authCode.Claims, authCode.Scopes, authCode.Nonce, accessToken, authCode.ID, authCode.ConnectorID)
-	if err != nil {
-		s.logger.Errorf("failed to create ID token: %v", err)
-		s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
-		return nil, err
-	}
-
 	if err := s.storage.DeleteAuthCode(authCode.ID); err != nil {
 		s.logger.Errorf("failed to delete auth code: %v", err)
 		s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
@@ -972,6 +958,7 @@ func (s *Server) exchangeAuthCode(w http.ResponseWriter, authCode storage.AuthCo
 		return false
 	}()
 	var refreshToken string
+	var err error
 	if reqRefresh {
 		refresh := storage.RefreshToken{
 			ID:            storage.NewID(),
@@ -1069,6 +1056,21 @@ func (s *Server) exchangeAuthCode(w http.ResponseWriter, authCode storage.AuthCo
 			}
 		}
 	}
+
+	accessToken, _, err := s.newAccessToken(client.ID, authCode.Claims, authCode.Scopes, authCode.Nonce, authCode.ConnectorID)
+	if err != nil {
+		s.logger.Errorf("failed to create new access token: %v", err)
+		s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
+		return nil, err
+	}
+
+	idToken, expiry, err := s.newIDToken(client.ID, authCode.Claims, authCode.Scopes, authCode.Nonce, accessToken, authCode.ID, authCode.ConnectorID)
+	if err != nil {
+		s.logger.Errorf("failed to create ID token: %v", err)
+		s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
+		return nil, err
+	}
+
 	return s.toAccessTokenResponse(idToken, accessToken, refreshToken, expiry), nil
 }
 

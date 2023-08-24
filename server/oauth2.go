@@ -294,10 +294,14 @@ type idTokenClaims struct {
 	Name              string `json:"name,omitempty"`
 	PreferredUsername string `json:"preferred_username,omitempty"`
 
+	// CloudCasa Auth0 cliams
 	FirstName           string `json:"http://www.cloudcasa.io/firstName,omitempty"`
 	LastName            string `json:"http://www.cloudcasa.io/lastName,omitempty"`
 	CountryCode         string `json:"http://www.cloudcasa.io/country_code,omitempty"`
 	AwsMarketplaceToken string `json:"http://www.cloudcasa.io/aws_marketplace_token,omitempty"`
+
+	// Custom CloudCasa claims
+	RefreshTokenExpiresAt int64 `json:"refresh_token_expires_at,omitempty"`
 
 	FederatedIDClaims *federatedIDClaims `json:"federated_claims,omitempty"`
 }
@@ -351,6 +355,23 @@ func (s *Server) newIDToken(clientID string, claims storage.Claims, scopes []str
 		LastName:            claims.LastName,
 		CountryCode:         claims.CountryCode,
 		AwsMarketplaceToken: claims.AwsMarketplaceToken,
+	}
+
+	if s.refreshTokenPolicy.absoluteLifetime != 0 {
+		refreshTokens, err := s.storage.ListRefreshTokens()
+		if err != nil {
+			return "", expiry, fmt.Errorf("error listing refresh tokens: %v", err)
+		}
+
+		for _, t := range refreshTokens {
+			// NOTE:
+			// The following check is executed only for SaaS version. If we decide to support
+			// OIDC for self-hosting, we should change the if condition to check connector type.
+			if t.Claims.FirstName != "" && t.Claims.FirstName == tok.FirstName {
+				tok.RefreshTokenExpiresAt = t.CreatedAt.Add(s.refreshTokenPolicy.absoluteLifetime).Unix()
+				break
+			}
+		}
 	}
 
 	if accessToken != "" {
