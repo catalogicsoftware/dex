@@ -350,10 +350,7 @@ func (s *Server) newIDToken(ctx context.Context, clientID string, claims storage
 		}
 
 		for _, t := range refreshTokens {
-			// NOTE:
-			// The following check is executed only for SaaS version. If we decide to support
-			// OIDC for self-hosting, we should change the if condition to check connector type.
-			if t.Claims.FirstName != "" && t.Claims.FirstName == tok.FirstName {
+			if t.Claims.UserID == claims.UserID {
 				tok.RefreshTokenExpiresAt = t.CreatedAt.Add(s.refreshTokenPolicy.absoluteLifetime).Unix()
 				break
 			}
