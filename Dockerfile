@@ -29,8 +29,7 @@ COPY api/v2/go.mod api/v2/go.sum ./api/v2/
 RUN go mod download
 
 COPY . .
-RUN docker info
-Run docker -v
+
 RUN make release-binary
 RUN xx-verify /go/bin/dex && xx-verify /go/bin/docker-entrypoint
 
