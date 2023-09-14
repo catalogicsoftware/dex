@@ -427,6 +427,9 @@ func (c *oidcConnector) LoginURL(s connector.Scopes, callbackURL, state string) 
 		acrValues := strings.Join(c.acrValues, " ")
 		opts = append(opts, oauth2.SetAuthURLParam("acr_values", acrValues))
 	}
+	if s.Connection != "" {
+		opts = append(opts, oauth2.SetAuthURLParam("connection", s.Connection))
+	}
 
 	if s.OfflineAccess {
 		opts = append(opts, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", c.promptType))
