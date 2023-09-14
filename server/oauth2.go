@@ -617,7 +617,8 @@ func (s *Server) parseAuthorizationRequest(r *http.Request) (*storage.AuthReques
 			CodeChallenge:       codeChallenge,
 			CodeChallengeMethod: codeChallengeMethod,
 		},
-		HMACKey: storage.NewHMACKey(crypto.SHA256),
+		HMACKey:    storage.NewHMACKey(crypto.SHA256),
+		Connection: q.Get("connection"),
 	}, nil
 }
 

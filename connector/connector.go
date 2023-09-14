@@ -19,6 +19,9 @@ type Scopes struct {
 
 	// The client has requested group information about the end user.
 	Groups bool
+
+	// Connection is a custom field used by CloudCasa
+	Connection string
 }
 
 // Identity represents the ID Token claims supported by the server.

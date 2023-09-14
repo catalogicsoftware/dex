@@ -238,6 +238,9 @@ type AuthRequest struct {
 
 	// HMACKey is used when generating an AuthRequest-specific HMAC
 	HMACKey []byte
+
+	// Connection is a custom field for CloudCasa
+	Connection string
 }
 
 // AuthCode represents a code which can be exchanged for an OAuth2 token response.
