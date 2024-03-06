@@ -53,6 +53,7 @@ type Config struct {
 	GroupNameFormat      GroupNameFormat `json:"groupNameFormat"`
 	UseGroupsAsWhitelist bool            `json:"useGroupsAsWhitelist"`
 	EmailToLowercase     bool            `json:"emailToLowercase"`
+	Cloud                string          `json:"cloud"`
 
 	APIURL   string `json:"apiURL"`
 	GraphURL string `json:"graphURL"`
@@ -68,8 +69,6 @@ type Config struct {
 // Open returns a strategy for logging in through Microsoft.
 func (c *Config) Open(id string, logger *slog.Logger) (connector.Connector, error) {
 	m := microsoftConnector{
-		apiURL:               strings.TrimSuffix(c.APIURL, "/"),
-		graphURL:             strings.TrimSuffix(c.GraphURL, "/"),
 		redirectURI:          c.RedirectURI,
 		clientID:             c.ClientID,
 		clientSecret:         c.ClientSecret,
@@ -97,6 +96,18 @@ func (c *Config) Open(id string, logger *slog.Logger) (connector.Connector, erro
 	// accounts.
 	if m.tenant == "" {
 		m.tenant = "common"
+	}
+
+	// Set the right endpoints based on the Azure Cloud environment.
+	switch c.Cloud {
+	case "Government":
+		m.apiURL = "https://login.microsoftonline.us"
+		m.graphURL = "https://graph.microsoft.us"
+	case "Public", "":
+		m.apiURL = "https://login.microsoftonline.com"
+		m.graphURL = "https://graph.microsoft.com"
+	default:
+		return nil, fmt.Errorf("unsupported Azure Cloud: %s", c.Cloud)
 	}
 
 	// By default, use group names
