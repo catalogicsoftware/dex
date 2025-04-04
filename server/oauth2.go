@@ -295,10 +295,11 @@ type idTokenClaims struct {
 	PreferredUsername string `json:"preferred_username,omitempty"`
 
 	// CloudCasa Auth0 cliams
-	FirstName           string `json:"http://www.cloudcasa.io/firstName,omitempty"`
-	LastName            string `json:"http://www.cloudcasa.io/lastName,omitempty"`
-	CountryCode         string `json:"http://www.cloudcasa.io/country_code,omitempty"`
-	AwsMarketplaceToken string `json:"http://www.cloudcasa.io/aws_marketplace_token,omitempty"`
+	FirstName                string `json:"http://www.cloudcasa.io/firstName,omitempty"`
+	LastName                 string `json:"http://www.cloudcasa.io/lastName,omitempty"`
+	CountryCode              string `json:"http://www.cloudcasa.io/country_code,omitempty"`
+	AwsMarketplaceToken      string `json:"http://www.cloudcasa.io/aws_marketplace_token,omitempty"`
+	EnterpriseConnectionName string `json:"http://www.cloudcasa.io/enterprise-connection-name,omitempty"`
 
 	// Custom CloudCasa claims
 	RefreshTokenExpiresAt int64 `json:"refresh_token_expires_at,omitempty"`
@@ -346,15 +347,16 @@ func (s *Server) newIDToken(clientID string, claims storage.Claims, scopes []str
 	}
 
 	tok := idTokenClaims{
-		Issuer:              s.issuerURL.String(),
-		Subject:             subjectString,
-		Nonce:               nonce,
-		Expiry:              expiry.Unix(),
-		IssuedAt:            issuedAt.Unix(),
-		FirstName:           claims.FirstName,
-		LastName:            claims.LastName,
-		CountryCode:         claims.CountryCode,
-		AwsMarketplaceToken: claims.AwsMarketplaceToken,
+		Issuer:                   s.issuerURL.String(),
+		Subject:                  subjectString,
+		Nonce:                    nonce,
+		Expiry:                   expiry.Unix(),
+		IssuedAt:                 issuedAt.Unix(),
+		FirstName:                claims.FirstName,
+		LastName:                 claims.LastName,
+		CountryCode:              claims.CountryCode,
+		AwsMarketplaceToken:      claims.AwsMarketplaceToken,
+		EnterpriseConnectionName: claims.EnterpriseConnectionName,
 	}
 
 	if s.refreshTokenPolicy.absoluteLifetime != 0 {

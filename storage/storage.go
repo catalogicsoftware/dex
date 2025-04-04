@@ -181,10 +181,11 @@ type Claims struct {
 	EmailVerified     bool
 
 	// Custom CloudCasa claims
-	FirstName           string
-	LastName            string
-	CountryCode         string
-	AwsMarketplaceToken string
+	FirstName                string
+	LastName                 string
+	CountryCode              string
+	AwsMarketplaceToken      string
+	EnterpriseConnectionName string
 
 	Groups []string
 }

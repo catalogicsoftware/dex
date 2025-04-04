@@ -501,16 +501,17 @@ func (s *Server) handleConnectorCallback(w http.ResponseWriter, r *http.Request)
 // the approval page's path.
 func (s *Server) finalizeLogin(identity connector.Identity, authReq storage.AuthRequest, conn connector.Connector) (string, bool, error) {
 	claims := storage.Claims{
-		UserID:              identity.UserID,
-		Username:            identity.Username,
-		PreferredUsername:   identity.PreferredUsername,
-		Email:               identity.Email,
-		EmailVerified:       identity.EmailVerified,
-		Groups:              identity.Groups,
-		FirstName:           identity.FirstName,
-		LastName:            identity.LastName,
-		CountryCode:         identity.CountryCode,
-		AwsMarketplaceToken: identity.AwsMarketplaceToken,
+		UserID:                   identity.UserID,
+		Username:                 identity.Username,
+		PreferredUsername:        identity.PreferredUsername,
+		Email:                    identity.Email,
+		EmailVerified:            identity.EmailVerified,
+		Groups:                   identity.Groups,
+		FirstName:                identity.FirstName,
+		LastName:                 identity.LastName,
+		CountryCode:              identity.CountryCode,
+		AwsMarketplaceToken:      identity.AwsMarketplaceToken,
+		EnterpriseConnectionName: identity.EnterpriseConnectionName,
 	}
 
 	updater := func(a storage.AuthRequest) (storage.AuthRequest, error) {
@@ -1388,16 +1389,17 @@ func (s *Server) handleTokenExchange(w http.ResponseWriter, r *http.Request, cli
 	}
 
 	claims := storage.Claims{
-		UserID:              identity.UserID,
-		Username:            identity.Username,
-		PreferredUsername:   identity.PreferredUsername,
-		Email:               identity.Email,
-		EmailVerified:       identity.EmailVerified,
-		Groups:              identity.Groups,
-		FirstName:           identity.FirstName,
-		LastName:            identity.LastName,
-		CountryCode:         identity.CountryCode,
-		AwsMarketplaceToken: identity.AwsMarketplaceToken,
+		UserID:                   identity.UserID,
+		Username:                 identity.Username,
+		PreferredUsername:        identity.PreferredUsername,
+		Email:                    identity.Email,
+		EmailVerified:            identity.EmailVerified,
+		Groups:                   identity.Groups,
+		FirstName:                identity.FirstName,
+		LastName:                 identity.LastName,
+		CountryCode:              identity.CountryCode,
+		AwsMarketplaceToken:      identity.AwsMarketplaceToken,
+		EnterpriseConnectionName: identity.EnterpriseConnectionName,
 	}
 	resp := accessTokenResponse{
 		IssuedTokenType: requestedTokenType,
