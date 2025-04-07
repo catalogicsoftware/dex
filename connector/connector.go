@@ -46,10 +46,11 @@ type Identity struct {
 	EmailVerified     bool
 
 	// Custom claims used by CloudCasa
-	FirstName           string
-	LastName            string
-	CountryCode         string
-	AwsMarketplaceToken string
+	FirstName                string
+	LastName                 string
+	CountryCode              string
+	AwsMarketplaceToken      string
+	EnterpriseConnectionName string
 
 	Groups []string
 
