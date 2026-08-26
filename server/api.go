@@ -420,9 +420,10 @@ func (d dexAPI) RevokeRefresh(ctx context.Context, req *api.RevokeRefreshReq) (*
 
 	// Delete the refresh token from the storage
 	//
-	// TODO(ericchiang): we don't have any good recourse if this call fails.
-	// Consider garbage collection of refresh tokens with no associated ref.
-	if err := d.s.DeleteRefresh(ctx, refreshID); err != nil {
+	// ErrNotFound is tolerated, because the reference held by the offline session can
+	// outlive the token itself, since Server.gcExpiredRefreshTokens deletes
+	// tokens past their absolute lifetime without pruning the reference.
+	if err := d.s.DeleteRefresh(ctx, refreshID); err != nil && err != storage.ErrNotFound {
 		d.logger.Error("failed to delete refresh token", "err", err)
 		return nil, err
 	}

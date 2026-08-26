@@ -756,7 +756,7 @@ func (s *Server) sendCodeResponse(w http.ResponseWriter, r *http.Request, authRe
 			implicitOrHybrid = true
 			var err error
 
-			accessToken, _, err = s.newAccessToken(r.Context(), authReq.ClientID, authReq.Claims, authReq.Scopes, authReq.Nonce, authReq.ConnectorID)
+			accessToken, _, err = s.newAccessToken(r.Context(), authReq.ClientID, authReq.Claims, authReq.Scopes, authReq.Nonce, authReq.ConnectorID, time.Time{})
 			if err != nil {
 				s.logger.ErrorContext(r.Context(), "failed to create new access token", "err", err)
 				s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
@@ -766,7 +766,7 @@ func (s *Server) sendCodeResponse(w http.ResponseWriter, r *http.Request, authRe
 			implicitOrHybrid = true
 			var err error
 
-			idToken, idTokenExpiry, err = s.newIDToken(r.Context(), authReq.ClientID, authReq.Claims, authReq.Scopes, authReq.Nonce, accessToken, code.ID, authReq.ConnectorID)
+			idToken, idTokenExpiry, err = s.newIDToken(r.Context(), authReq.ClientID, authReq.Claims, authReq.Scopes, authReq.Nonce, accessToken, code.ID, authReq.ConnectorID, time.Time{})
 			if err != nil {
 				s.logger.ErrorContext(r.Context(), "failed to create ID token", "err", err)
 				s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
@@ -1008,7 +1008,12 @@ func (s *Server) exchangeAuthCode(ctx context.Context, w http.ResponseWriter, au
 	}()
 	var refreshToken string
 	var err error
+	// refreshCreatedAt stays zero when no refresh token is issued, so that
+	// newIDToken omits the refresh_token_expires_at claim instead of reporting
+	// the lifetime of an unrelated token.
+	var refreshCreatedAt time.Time
 	if reqRefresh {
+		refreshCreatedAt = s.now()
 		refresh := storage.RefreshToken{
 			ID:            storage.NewID(),
 			Token:         storage.NewID(),
@@ -1018,8 +1023,8 @@ func (s *Server) exchangeAuthCode(ctx context.Context, w http.ResponseWriter, au
 			Claims:        authCode.Claims,
 			Nonce:         authCode.Nonce,
 			ConnectorData: authCode.ConnectorData,
-			CreatedAt:     s.now(),
-			LastUsed:      s.now(),
+			CreatedAt:     refreshCreatedAt,
+			LastUsed:      refreshCreatedAt,
 		}
 		token := &internal.RefreshToken{
 			RefreshId: refresh.ID,
@@ -1106,14 +1111,14 @@ func (s *Server) exchangeAuthCode(ctx context.Context, w http.ResponseWriter, au
 		}
 	}
 
-	accessToken, _, err := s.newAccessToken(ctx, client.ID, authCode.Claims, authCode.Scopes, authCode.Nonce, authCode.ConnectorID)
+	accessToken, _, err := s.newAccessToken(ctx, client.ID, authCode.Claims, authCode.Scopes, authCode.Nonce, authCode.ConnectorID, refreshCreatedAt)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create new access token", "err", err)
 		s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
 		return nil, err
 	}
 
-	idToken, expiry, err := s.newIDToken(ctx, client.ID, authCode.Claims, authCode.Scopes, authCode.Nonce, accessToken, authCode.ID, authCode.ConnectorID)
+	idToken, expiry, err := s.newIDToken(ctx, client.ID, authCode.Claims, authCode.Scopes, authCode.Nonce, accessToken, authCode.ID, authCode.ConnectorID, refreshCreatedAt)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create ID token", "err", err)
 		s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
@@ -1247,20 +1252,6 @@ func (s *Server) handlePasswordGrant(w http.ResponseWriter, r *http.Request, cli
 		Groups:            identity.Groups,
 	}
 
-	accessToken, _, err := s.newAccessToken(ctx, client.ID, claims, scopes, nonce, connID)
-	if err != nil {
-		s.logger.ErrorContext(r.Context(), "password grant failed to create new access token", "err", err)
-		s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
-		return
-	}
-
-	idToken, expiry, err := s.newIDToken(ctx, client.ID, claims, scopes, nonce, accessToken, "", connID)
-	if err != nil {
-		s.logger.ErrorContext(r.Context(), "password grant failed to create new ID token", "err", err)
-		s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
-		return
-	}
-
 	reqRefresh := func() bool {
 		// Ensure the connector supports refresh tokens.
 		//
@@ -1277,6 +1268,29 @@ func (s *Server) handlePasswordGrant(w http.ResponseWriter, r *http.Request, cli
 		}
 		return false
 	}()
+
+	// The refresh token is created further down, but the tokens minted here must
+	// carry its lifetime, so settle on its creation time up front. Zero when no
+	// refresh token is issued, which makes newIDToken omit the claim.
+	var refreshCreatedAt time.Time
+	if reqRefresh {
+		refreshCreatedAt = s.now()
+	}
+
+	accessToken, _, err := s.newAccessToken(ctx, client.ID, claims, scopes, nonce, connID, refreshCreatedAt)
+	if err != nil {
+		s.logger.ErrorContext(r.Context(), "password grant failed to create new access token", "err", err)
+		s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
+		return
+	}
+
+	idToken, expiry, err := s.newIDToken(ctx, client.ID, claims, scopes, nonce, accessToken, "", connID, refreshCreatedAt)
+	if err != nil {
+		s.logger.ErrorContext(r.Context(), "password grant failed to create new ID token", "err", err)
+		s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
+		return
+	}
+
 	var refreshToken string
 	if reqRefresh {
 		refresh := storage.RefreshToken{
@@ -1288,8 +1302,8 @@ func (s *Server) handlePasswordGrant(w http.ResponseWriter, r *http.Request, cli
 			Claims:      claims,
 			Nonce:       nonce,
 			// ConnectorData: authCode.ConnectorData,
-			CreatedAt: s.now(),
-			LastUsed:  s.now(),
+			CreatedAt: refreshCreatedAt,
+			LastUsed:  refreshCreatedAt,
 		}
 		token := &internal.RefreshToken{
 			RefreshId: refresh.ID,
@@ -1456,9 +1470,9 @@ func (s *Server) handleTokenExchange(w http.ResponseWriter, r *http.Request, cli
 	var expiry time.Time
 	switch requestedTokenType {
 	case tokenTypeID:
-		resp.AccessToken, expiry, err = s.newIDToken(r.Context(), client.ID, claims, scopes, "", "", "", connID)
+		resp.AccessToken, expiry, err = s.newIDToken(r.Context(), client.ID, claims, scopes, "", "", "", connID, time.Time{})
 	case tokenTypeAccess:
-		resp.AccessToken, expiry, err = s.newAccessToken(r.Context(), client.ID, claims, scopes, "", connID)
+		resp.AccessToken, expiry, err = s.newAccessToken(r.Context(), client.ID, claims, scopes, "", connID, time.Time{})
 	default:
 		s.tokenErrHelper(w, errRequestNotSupported, "Invalid requested_token_type.", http.StatusBadRequest)
 		return

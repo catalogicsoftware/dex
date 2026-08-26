@@ -275,8 +275,8 @@ type federatedIDClaims struct {
 	UserID      string `json:"user_id,omitempty"`
 }
 
-func (s *Server) newAccessToken(ctx context.Context, clientID string, claims storage.Claims, scopes []string, nonce, connID string) (accessToken string, expiry time.Time, err error) {
-	return s.newIDToken(ctx, clientID, claims, scopes, nonce, storage.NewID(), "", connID)
+func (s *Server) newAccessToken(ctx context.Context, clientID string, claims storage.Claims, scopes []string, nonce, connID string, refreshCreatedAt time.Time) (accessToken string, expiry time.Time, err error) {
+	return s.newIDToken(ctx, clientID, claims, scopes, nonce, storage.NewID(), "", connID, refreshCreatedAt)
 }
 
 func getClientID(aud audience, azp string) (string, error) {
@@ -322,7 +322,7 @@ func genSubject(userID string, connID string) (string, error) {
 	return internal.Marshal(sub)
 }
 
-func (s *Server) newIDToken(ctx context.Context, clientID string, claims storage.Claims, scopes []string, nonce, accessToken, code, connID string) (idToken string, expiry time.Time, err error) {
+func (s *Server) newIDToken(ctx context.Context, clientID string, claims storage.Claims, scopes []string, nonce, accessToken, code, connID string, refreshCreatedAt time.Time) (idToken string, expiry time.Time, err error) {
 	issuedAt := s.now()
 	expiry = issuedAt.Add(s.idTokensValidFor)
 
@@ -345,18 +345,8 @@ func (s *Server) newIDToken(ctx context.Context, clientID string, claims storage
 		EnterpriseConnectionName: claims.EnterpriseConnectionName,
 	}
 
-	if s.refreshTokenPolicy.absoluteLifetime != 0 {
-		refreshTokens, err := s.storage.ListRefreshTokens(ctx)
-		if err != nil {
-			return "", expiry, fmt.Errorf("error listing refresh tokens: %v", err)
-		}
-
-		for _, t := range refreshTokens {
-			if t.Claims.UserID == claims.UserID {
-				tok.RefreshTokenExpiresAt = t.CreatedAt.Add(s.refreshTokenPolicy.absoluteLifetime).Unix()
-				break
-			}
-		}
+	if !refreshCreatedAt.IsZero() && s.refreshTokenPolicy.absoluteLifetime != 0 {
+		tok.RefreshTokenExpiresAt = refreshCreatedAt.Add(s.refreshTokenPolicy.absoluteLifetime).Unix()
 	}
 
 	// Determine signing algorithm from signer

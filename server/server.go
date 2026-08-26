@@ -647,6 +647,10 @@ func (k *keyCacher) GetKeys(ctx context.Context) (storage.Keys, error) {
 	return storageKeys, nil
 }
 
+// refreshTokenGCLimit bounds how many expired refresh tokens a single garbage
+// collection run deletes
+const refreshTokenGCLimit = 500
+
 func (s *Server) startGarbageCollection(ctx context.Context, frequency time.Duration, now func() time.Time) {
 	go func() {
 		for {
@@ -661,9 +665,53 @@ func (s *Server) startGarbageCollection(ctx context.Context, frequency time.Dura
 						"requests", r.AuthRequests, "auth_codes", r.AuthCodes,
 						"device_requests", r.DeviceRequests, "device_tokens", r.DeviceTokens)
 				}
+
+				s.gcExpiredRefreshTokens(ctx)
 			}
 		}
 	}()
+}
+
+// gcExpiredRefreshTokens deletes refresh tokens that are past their absolute
+// lifetime.
+func (s *Server) gcExpiredRefreshTokens(ctx context.Context) {
+	if s.refreshTokenPolicy == nil || s.refreshTokenPolicy.absoluteLifetime == 0 {
+		// Expiration is disabled, so every refresh token is still live.
+		return
+	}
+
+	tokens, err := s.storage.ListRefreshTokens(ctx)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to list refresh tokens for garbage collection", "err", err)
+		return
+	}
+
+	var deleted, expired int
+	for _, t := range tokens {
+		if !s.refreshTokenPolicy.CompletelyExpired(t.CreatedAt) {
+			continue
+		}
+		expired++
+		if deleted >= refreshTokenGCLimit {
+			// Drain the rest on subsequent runs rather than issuing an unbounded
+			// number of deletes in one pass.
+			continue
+		}
+		if err := s.storage.DeleteRefresh(ctx, t.ID); err != nil && err != storage.ErrNotFound {
+			s.logger.ErrorContext(ctx, "failed to delete expired refresh token", "token_id", t.ID, "err", err)
+			continue
+		}
+		deleted++
+	}
+
+	if deleted > 0 {
+		s.logger.InfoContext(
+			ctx, "garbage collection run, deleted expired refresh tokens",
+			"refresh_tokens", deleted,
+			"expired_total", expired,
+			"remaining", expired-deleted,
+		)
+	}
 }
 
 // ConnectorConfig is a configuration that can open a connector.
