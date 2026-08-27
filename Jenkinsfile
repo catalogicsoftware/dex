@@ -16,6 +16,15 @@ def acrCredentialsId       = 'cloudcasa-azurecr'
 
 def mainBranch = 'cloudcasa-v2.45.1'
 
+// Regex Matcher objects aren't Serializable, so this must stay @NonCPS and return a
+// plain String. Otherwise Jenkins throws NotSerializableException(Matcher) the first
+// time it checkpoints pipeline state
+@NonCPS
+def parseDexVersion(String branchName) {
+    def m = (branchName ?: '') =~ /^cloudcasa-v(.+)$/
+    return m.find() ? m.group(1) : (branchName ?: 'unknown').replaceAll('[^0-9A-Za-z.-]', '-')
+}
+
 properties([parameters([
     booleanParam(name: 'FORCE_BUILD', defaultValue: false,
         description: 'Build/push the dex image even when BRANCH_NAME is not the configured main branch'),
@@ -43,8 +52,7 @@ node('cloudcasa-build') {
 
     // e.g. "cloudcasa-v2.45.1" -> "2.45.1"; falls back to the sanitized branch name if it
     // doesn't follow the cloudcasa-vX.Y.Z convention (manual/forced builds off other branches).
-    def dexVersionMatch = (env.BRANCH_NAME ?: '') =~ /^cloudcasa-v(.+)$/
-    def dexVersion = dexVersionMatch.find() ? dexVersionMatch.group(1) : (env.BRANCH_NAME ?: 'unknown').replaceAll('[^0-9A-Za-z.-]', '-')
+    def dexVersion = parseDexVersion(env.BRANCH_NAME)
     def dockerTag = "${dexVersion}-${env.BUILD_NUMBER}"
 
     if (!buildImage) {
