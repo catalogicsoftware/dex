@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/mail"
 	"strings"
 
 	"golang.org/x/oauth2"
@@ -31,6 +32,12 @@ type Config struct {
 	Groups       []string `json:"groups"`
 	InsecureCA   bool     `json:"insecureCA"`
 	RootCA       string   `json:"rootCA"`
+
+	// InsecureSkipEmailVerified overwrites the value of email_verified to true in the returned claims
+	InsecureSkipEmailVerified bool `json:"insecureSkipEmailVerified"`
+
+	// EmailDomain is a custom field that is set if the user.Name is not a valid email address.
+	EmailDomain string `json:"emailDomain"`
 }
 
 var (
@@ -39,17 +46,19 @@ var (
 )
 
 type openshiftConnector struct {
-	apiURL       string
-	redirectURI  string
-	clientID     string
-	clientSecret string
-	cancel       context.CancelFunc
-	logger       *slog.Logger
-	httpClient   *http.Client
-	oauth2Config *oauth2.Config
-	insecureCA   bool
-	rootCA       string
-	groups       []string
+	apiURL                    string
+	redirectURI               string
+	clientID                  string
+	clientSecret              string
+	insecureSkipEmailVerified bool
+	emailDomain               string
+	cancel                    context.CancelFunc
+	logger                    *slog.Logger
+	httpClient                *http.Client
+	oauth2Config              *oauth2.Config
+	insecureCA                bool
+	rootCA                    string
+	groups                    []string
 }
 
 type user struct {
@@ -91,16 +100,18 @@ func (c *Config) OpenWithHTTPClient(id string, logger *slog.Logger,
 	}
 
 	openshiftConnector := openshiftConnector{
-		apiURL:       c.Issuer,
-		cancel:       cancel,
-		clientID:     c.ClientID,
-		clientSecret: c.ClientSecret,
-		insecureCA:   c.InsecureCA,
-		logger:       logger.With(slog.Group("connector", "type", "openshift", "id", id)),
-		redirectURI:  c.RedirectURI,
-		rootCA:       c.RootCA,
-		groups:       c.Groups,
-		httpClient:   httpClient,
+		apiURL:                    c.Issuer,
+		cancel:                    cancel,
+		clientID:                  c.ClientID,
+		clientSecret:              c.ClientSecret,
+		insecureCA:                c.InsecureCA,
+		insecureSkipEmailVerified: c.InsecureSkipEmailVerified,
+		emailDomain:               c.EmailDomain,
+		logger:                    logger.With(slog.Group("connector", "type", "openshift", "id", id)),
+		redirectURI:               c.RedirectURI,
+		rootCA:                    c.RootCA,
+		groups:                    c.Groups,
+		httpClient:                httpClient,
 	}
 
 	var metadata struct {
@@ -220,6 +231,14 @@ func (c *openshiftConnector) identity(ctx context.Context, s connector.Scopes,
 		Groups:            user.Groups,
 	}
 
+	if c.insecureSkipEmailVerified {
+		identity.EmailVerified = true
+	}
+
+	if !hasEmailDomain(user.Name) && c.emailDomain != "" {
+		identity.Email = user.Name + "@" + c.emailDomain
+	}
+
 	if s.OfflineAccess {
 		connData, err := json.Marshal(token)
 		if err != nil {
@@ -265,4 +284,9 @@ func validateAllowedGroups(userGroups, allowedGroups []string) bool {
 	matchingGroups := groups.Filter(userGroups, allowedGroups)
 
 	return len(matchingGroups) != 0
+}
+
+func hasEmailDomain(val string) bool {
+	_, err := mail.ParseAddress(val)
+	return err == nil
 }

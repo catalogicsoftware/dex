@@ -30,11 +30,13 @@ func TestOpen(t *testing.T) {
 	expectNil(t, err)
 
 	c := Config{
-		Issuer:       s.URL,
-		ClientID:     "testClientId",
-		ClientSecret: "testClientSecret",
-		RedirectURI:  "https://localhost/callback",
-		InsecureCA:   true,
+		Issuer:                    s.URL,
+		ClientID:                  "testClientId",
+		ClientSecret:              "testClientSecret",
+		RedirectURI:               "https://localhost/callback",
+		InsecureCA:                true,
+		InsecureSkipEmailVerified: true,
+		EmailDomain:               "example.com",
 	}
 
 	logger := slog.New(slog.DiscardHandler)
@@ -49,6 +51,8 @@ func TestOpen(t *testing.T) {
 	expectEquals(t, oc.clientID, "testClientId")
 	expectEquals(t, oc.clientSecret, "testClientSecret")
 	expectEquals(t, oc.redirectURI, "https://localhost/callback")
+	expectEquals(t, oc.insecureSkipEmailVerified, true)
+	expectEquals(t, oc.emailDomain, "example.com")
 	expectEquals(t, oc.oauth2Config.Endpoint.AuthURL, fmt.Sprintf("%s/oauth/authorize", s.URL))
 	expectEquals(t, oc.oauth2Config.Endpoint.TokenURL, fmt.Sprintf("%s/oauth/token", s.URL))
 }
@@ -109,6 +113,24 @@ func TestVerifyMultipleGroupFn(t *testing.T) {
 	validGroupMembership := validateAllowedGroups(groupMembership, allowedGroups)
 
 	expectEquals(t, validGroupMembership, true)
+}
+
+func TestHasEmailDomain(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{"valid email", "jdoe@example.com", true},
+		{"username only", "jdoe", false},
+		{"empty string", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectEquals(t, hasEmailDomain(tt.value), tt.want)
+		})
+	}
 }
 
 func TestVerifyGroup(t *testing.T) {
@@ -184,6 +206,135 @@ func TestCallbackIdentity(t *testing.T) {
 	expectEquals(t, identity.Email, "jdoe")
 	expectEquals(t, len(identity.Groups), 1)
 	expectEquals(t, identity.Groups[0], "users")
+}
+
+func TestCallbackIdentityInsecureSkipEmailVerified(t *testing.T) {
+	s := newTestServer(map[string]interface{}{
+		"/apis/user.openshift.io/v1/users/~": user{
+			ObjectMeta: k8sapi.ObjectMeta{
+				Name: "jdoe",
+				UID:  "12345",
+			},
+			FullName: "John Doe",
+			Groups:   []string{"users"},
+		},
+		"/oauth/token": map[string]interface{}{
+			"access_token": "oRzxVjCnohYRHEYEhZshkmakKmoyVoTjfUGC",
+			"expires_in":   "30",
+		},
+	})
+	defer s.Close()
+
+	hostURL, err := url.Parse(s.URL)
+	expectNil(t, err)
+
+	req, err := http.NewRequest("GET", hostURL.String(), nil)
+	expectNil(t, err)
+
+	h, err := httpclient.NewHTTPClient(nil, true)
+	expectNil(t, err)
+
+	oc := openshiftConnector{
+		apiURL:                    s.URL,
+		httpClient:                h,
+		insecureSkipEmailVerified: true,
+		oauth2Config: &oauth2.Config{
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  fmt.Sprintf("%s/oauth/authorize", s.URL),
+				TokenURL: fmt.Sprintf("%s/oauth/token", s.URL),
+			},
+		},
+	}
+	identity, err := oc.HandleCallback(connector.Scopes{Groups: true}, nil, req)
+
+	expectNil(t, err)
+	expectEquals(t, identity.EmailVerified, true)
+}
+
+func TestCallbackIdentityEmailDomain(t *testing.T) {
+	s := newTestServer(map[string]interface{}{
+		"/apis/user.openshift.io/v1/users/~": user{
+			ObjectMeta: k8sapi.ObjectMeta{
+				Name: "jdoe",
+				UID:  "12345",
+			},
+			FullName: "John Doe",
+			Groups:   []string{"users"},
+		},
+		"/oauth/token": map[string]interface{}{
+			"access_token": "oRzxVjCnohYRHEYEhZshkmakKmoyVoTjfUGC",
+			"expires_in":   "30",
+		},
+	})
+	defer s.Close()
+
+	hostURL, err := url.Parse(s.URL)
+	expectNil(t, err)
+
+	req, err := http.NewRequest("GET", hostURL.String(), nil)
+	expectNil(t, err)
+
+	h, err := httpclient.NewHTTPClient(nil, true)
+	expectNil(t, err)
+
+	oc := openshiftConnector{
+		apiURL:      s.URL,
+		httpClient:  h,
+		emailDomain: "example.com",
+		oauth2Config: &oauth2.Config{
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  fmt.Sprintf("%s/oauth/authorize", s.URL),
+				TokenURL: fmt.Sprintf("%s/oauth/token", s.URL),
+			},
+		},
+	}
+	identity, err := oc.HandleCallback(connector.Scopes{Groups: true}, nil, req)
+
+	expectNil(t, err)
+	expectEquals(t, identity.Email, "jdoe@example.com")
+}
+
+func TestCallbackIdentityEmailDomainWithEmailUsername(t *testing.T) {
+	s := newTestServer(map[string]interface{}{
+		"/apis/user.openshift.io/v1/users/~": user{
+			ObjectMeta: k8sapi.ObjectMeta{
+				Name: "jdoe@another.com",
+				UID:  "12345",
+			},
+			FullName: "John Doe",
+			Groups:   []string{"users"},
+		},
+		"/oauth/token": map[string]interface{}{
+			"access_token": "oRzxVjCnohYRHEYEhZshkmakKmoyVoTjfUGC",
+			"expires_in":   "30",
+		},
+	})
+	defer s.Close()
+
+	hostURL, err := url.Parse(s.URL)
+	expectNil(t, err)
+
+	req, err := http.NewRequest("GET", hostURL.String(), nil)
+	expectNil(t, err)
+
+	h, err := httpclient.NewHTTPClient(nil, true)
+	expectNil(t, err)
+
+	oc := openshiftConnector{
+		apiURL:      s.URL,
+		httpClient:  h,
+		emailDomain: "example.com",
+		oauth2Config: &oauth2.Config{
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  fmt.Sprintf("%s/oauth/authorize", s.URL),
+				TokenURL: fmt.Sprintf("%s/oauth/token", s.URL),
+			},
+		},
+	}
+	identity, err := oc.HandleCallback(connector.Scopes{Groups: true}, nil, req)
+
+	expectNil(t, err)
+	expectEquals(t, identity.Email, "jdoe@another.com")
 }
 
 func TestRefreshIdentity(t *testing.T) {
